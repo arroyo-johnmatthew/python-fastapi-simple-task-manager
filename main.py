@@ -1,88 +1,76 @@
-import uvicorn
 from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy import Column, Integer, String, Boolean, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import List
+from .database import get_db, Base, engine
+from .models import Task
 
-# Database configurations
-SQLALCHEMY_DATABASE_URL = "sqlite:///./tasks.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-# SQLAlchemy model (database table)
-class Task(Base):
-    __tablename__ = "tasks"
-    id = Column(Integer, primary_key=True, index=True)
-    description = Column(String, index=True)
-    completed = Column(Boolean, default=False)
-
-Base.metadata.create_all(bind=engine)
-
-# Pydantic schemas (API validation)
+#Pydantic schemas
 class TaskBase(BaseModel):
-    description: str
-    completed: bool = False
+    title: str
 
 class TaskCreate(TaskBase):
     pass
 
 class TaskOut(TaskBase):
     id: int
-    class Config:
-        orm_mode = True
 
-# FastAPI app instance
+    class Config:
+        from_attributes = True
+
+# Create tables (run once at startup)
+Base.metadata.create_all(bind=engine)
+
+# Initialize FastAPI
 app = FastAPI()
 
-# CRUD operations
+# CRUD endpoints
+
+# Create task
 @app.post("/tasks/", response_model=TaskOut)
-def create_task(task: TaskCreate):
-    db = SessionLocal()
-
-    db_task = Task(description=task.description, completed=task.completed)
-    db.add(db_task)         # stage the new record
-    db.commit()             # append it to tasks.db
-    db.refresh(db_task)     # fetch the auto-generated id
-
+def create_task(task: TaskCreate, db: Session = Depends(get_db)):
+    db_task = Task(title=task.title)
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
     return db_task
 
-@app.get("/tasks/{task_id}", response_model=TaskOut)
-def read_tasks(task_id: int):
-    db = SessionLocal()
-    task = db.query(Task).filter(Task.id == task_id).first()
+# Read all tasks
+@app.get("/tasks/", response_model=List[TaskOut])
+def get_tasks(db: Session = Depends(get_db)):
+    return db.query(Task).all()
 
+# Read a single task
+@app.get("/tasks/{task_id}", response_model=TaskOut)
+def get_task(task_id: int, db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    
     if not task:
-        raise HTTPException(status_code=404, detail="Task Not Found")
+        raise HTTPException(status_code=404, detail="Task not found")
     return task
 
+# Update a task
 @app.put("/tasks/{task_id}", response_model=TaskOut)
-def update_tasks(task_id: int, updated_task: TaskCreate):
-    db = SessionLocal()
+def update_task(task_id: int, task_update: TaskCreate, db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
-
-    if not task:
-        raise HTTPException(status_code=404, detail="Task Not Found")
     
-    task.description = updated_task.description
-    task.completed = updated_task.completed
-
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task.title = task_update.title
     db.commit()
     db.refresh(task)
     return task
 
-@app.delete("/tasks/{task_id}", response_model=TaskOut)
-def delete_tasks(task_id: int):
-    db = SessionLocal()
+# Delete a task
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: int, db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
-
+    
     if not task:
-        raise HTTPException(status_code=404, detail="Task Not Found")
+        raise HTTPException(status_code=404, detail="Task not found")
     
     db.delete(task)
     db.commit()
-    return task
+    return {"detail": "Task deleted"}
 
-if __name__ == "__main__":
-    uvicorn.run(app)
