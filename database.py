@@ -8,7 +8,7 @@ load_dotenv() #load environment variables from .env file
 
 DATABASE_URL = os.getenv("DATABASE_URL") #load db url from .env file
 
-engine = create_enginge(DATABASE_URL) #create engine
+engine = create_engine(DATABASE_URL) #create engine
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
