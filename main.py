@@ -2,8 +2,8 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
-from .database import get_db, Base, engine
-from .models import Task
+from database import get_db, Base, engine
+from models import Task
 
 #Pydantic schemas
 class TaskBase(BaseModel):
