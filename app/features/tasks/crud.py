@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from models import Task
-from schemas import TaskCreate
+from app.features.tasks.models import Task
+from app.features.tasks.schemas import TaskCreate
 
 # CRUD functions (no endpoints)
 
