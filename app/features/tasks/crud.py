@@ -22,7 +22,11 @@ def get_task(task_id: int, db: Session) -> Optional[Task]:
     return db.query(Task).filter(Task.id == task_id).first()
     
 # Update a task
-def update_task(task_id: int, task_update: TaskCreate, db: Session) -> Optional[Task]:
+def update_task(
+    task_id: int, 
+    task_update: TaskCreate, 
+    db: Session
+) -> Optional[Task]:
     task = db.query(Task).filter(Task.id == task_id).first()
     
     if task:
